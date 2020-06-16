@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+
+    <!-- JQuery import -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+
+    <!-- Mapbox imports -->
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/v1.11.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v1.11.0/mapbox-gl.css" rel="stylesheet" />
+
+    <!-- CSS Style sheet -->
+
+    <link rel="stylesheet" href="style.css">
+
+    <title>GeoViewer</title>
+
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+
+    <input type="checkbox" id="check">
+    <label for="check">
+        <img alt="" src="menu.jpg" width="50px" id="menu">
+        <img alt="" src="x.jpg" width="30px" id="x">
+    </label>
+
+    <div class="sidebar">
+
+        <header>
+            <img id="photo"
+                src="https://1.bp.blogspot.com/-fLBOwYP2aHE/XZLUWFpi-dI/AAAAAAAAsm0/yd_AaDq2_4YEwpkt4rTSoaW7V6A7S6dHACLcBGAsYHQ/s1600/LOCALIZA%2BCIRCULO1.fw.png"
+                alt="" width="100px" height="100px">
+        </header>
+
+        <ul>
+
+            <li> <a>
+                    <label for="file"> Upload your GeoJSON Polygonal file: </label>
+                    <input type="file" id="file">
+                </a> </li>
+
+            <li> <a>
+                    Select the state information desired:
+                    <label for="color"> Color: </label>
+                    <input type="checkbox" id="color">
+                    <label for="area"> Area: </label>
+                    <input type="checkbox" id="area">
+                    <label for="number"> Number: </label>
+                    <input type="checkbox" id="number">
+                </a> </li>
+
+            <li> <a>
+                    <label for="filePoints"> Upload your GeoJSON Points file: </label>
+                    <input type="file" id="filePoints">
+            </a> </li>
+
+            <li> <a> <i id="buttonReset" onclick="location.reload();"> <img src="reset.jpg" width="30px" alt=""> </i> Reset the params </a> </li>
+
+        </ul>
+
+    </div>
+
+    <!-- Map -->
+
+    <div id="map"></div>
+
+    <script>
+
+        // Start the map
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY2FldGFub29nIiwiYSI6ImNrYmdwaXNxaDE3cjIzMG5vNHVsYnNndTYifQ.tI9XFzT6lskij7FhikWbkQ';
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [10.25, 51.33],
+            zoom: 5
+        });
+
+        // Watching if a GeoJson Polygon will be inserted
+
+        $("#file").change(function (event) {
+
+            var uploadedFile = event.target.files[0];
+
+            var json = null;
+
+            // Confirm if the file uploaded is a JSON
+
+            if (uploadedFile.type != "application/json") {
+                alert("Wrong file type == " + uploadedFile.type + "Please upload a .json file");
+                return false;
+            }
+
+            if (uploadedFile) {
+                var readFile = new FileReader();
+                readFile.onload = function (e) {
+                    var contents = e.target.result;
+                    json = JSON.parse(contents);
+
+                    // Would you like to separate the state in colors ? Uncomment this part
+
+                    /*
+                    for (i in json.features) {
+                        map.addLayer({
+                            'id': 'area_' + i,
+                            'type': 'fill',
+                            'source': 'maine',
+                            'layout': {},
+                            'paint': {
+                                'fill-color': json.features[i].properties.color,
+                                'fill-opacity': 0.4
+                            },
+                            "source": {
+                                'type': 'geojson',
+                                'data': json.features[i]
+
+                            }
+                        });
+
+                    }
+                    */
+
+
+                    // Creating the Map Layer
+
+                    map.addSource('states', {
+                        'type': 'geojson',
+                        'data': json
+                    });
+                    map.addLayer({
+                        'id': 'states-layer',
+                        'type': 'fill',
+                        'source': 'states',
+                        'paint': {
+                            'fill-color': 'rgba(4, 35, 49, 0.4)',
+                            'fill-outline-color': 'rgba(4, 35, 49, 0.8)'
+                        }
+                    });
+
+                    // Creating the clicking popups 
+
+                    var popup = new mapboxgl.Popup({ offset: 25 });
+
+                    map.on('click', 'states-layer', function (e) {
+                        // Change the cursor style as a UI indicator.
+                        map.getCanvas().style.cursor = 'pointer';
+
+                        var color = e.features[0].properties.color;
+                        var area = e.features[0].properties.area;
+                        var number = e.features[0].properties.number;
+                        
+
+                        var description;
+
+                        // Selecting the data that the user could chosen
+
+                        if($('#color').is(":checked") && $('#area').is(":checked") && $('#number').is(":checked")){
+                            description = "<strong> Color: </strong>" + color + "<br>" +
+                            "<strong> Number: </strong>" + number + "<br>" +
+                            "<strong> Area: </strong>" + area.toLocaleString('pt-BR') + " m2";
+                            
+                        }else if ($('#color').is(":checked") && $('#area').is(':not(:checked)') && $('#number').is(":checked")){
+                            description = "<strong> Color: </strong>" + color + "<br>" +
+                            "<strong> Number: </strong>" + number;
+
+                        }else if ($('#color').is(":checked") && $('#area').is(':not(:checked)') && $('#number').is(':not(:checked)')){
+                            description = "<strong> Color: </strong>" + color;
+
+                        }else if ($('#color').is(":not(:checked)") && $('#area').is(':checked') && $('#number').is(':checked')){
+                            description = "<strong> Number: </strong>" + number + "<br>" +
+                            "<strong> Area: </strong>" + area.toLocaleString('pt-BR') + " m2";
+
+                        }else if ($('#color').is(":checked") && $('#area').is(':checked') && $('#number').is(':not(:checked)')){
+                            description = "<strong> Color: </strong>" + color + "<br>" +
+                            "<strong> Area: </strong>" + area.toLocaleString('pt-BR') + " m2";
+
+                        }else if ($('#color').is(":not(:checked)") && $('#area').is(':checked') && $('#number').is(':not(:checked)')){
+                            description = "<strong> Area: </strong>" + area.toLocaleString('pt-BR') + " m2";
+
+                        }else if ($('#color').is(":not(:checked)") && $('#area').is(':not(:checked)') && $('#number').is(':checked')){
+                            description = "<strong> Number: </strong>" + number;
+
+                        }else{
+                            description = "<strong> Select one information ! </strong>";
+                        }
+                        
+
+
+                        // Populate the popup and set its coordinates
+                        // based on the feature found.
+
+                        popup
+                            .setLngLat(e.lngLat)
+                            .setHTML(description)
+                            .addTo(map);
+                    });
+
+                };
+                readFile.readAsText(uploadedFile);
+            } else {
+                console.log("Failed to load file");
+            }
+
+        });
+
+        // Watching if a GeoJson Points will be inserted
+
+        $("#filePoints").change(function (event) {
+
+            var uploadedFile = event.target.files[0];
+
+            var json = null;
+
+            // Confirm if the file uploaded is a JSON
+
+            if (uploadedFile.type != "application/json") {
+                alert("Wrong file type == " + uploadedFile.type + "Please upload a .json file");
+                return false;
+            }
+
+            if (uploadedFile) {
+                var readFile = new FileReader();
+                readFile.onload = function (e) {
+                    var contents = e.target.result;
+                    json = JSON.parse(contents);
+                    console.log(json);
+
+                    geojson = json;
+
+
+
+                    geojson.features.forEach(function (marker, i) {
+
+                        // create a HTML element for each feature
+
+                        var el = document.createElement('div');
+                        el.className = 'marker';
+
+                        var popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+                            "<strong> City: </strong>" + marker.properties.NAME_2 + "<br>" +
+                            "<strong> State: </strong>" + marker.properties.NAME_1
+
+                        );
+
+                        el.addEventListener('mouseenter', () => popup.addTo(map));
+                        el.addEventListener('mouseleave', () => popup.remove());
+
+                        // make a marker for each feature and add to the map
+
+                        new mapboxgl.Marker(el)
+                            .setLngLat(marker.geometry.coordinates)
+                            .setPopup(popup)
+                            .addTo(map);
+                    });
+
+                };
+                readFile.readAsText(uploadedFile);
+            } else {
+                console.log("Failed to load file");
+            }
+        });
+
+    </script>
+
+</body>
+
+</html>
